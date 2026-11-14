@@ -1286,7 +1286,7 @@ const PlannerEngine = (() => {
         }
       }
     });
-    return scheduleMap;
+    return scheduleByDate;
   }
   return { buildScheduleMap };
 })();
@@ -1635,7 +1635,7 @@ const App = (() => {
 App.init();
 </script>
 
-<!-- FIREBASE SDKs & INTEGRATION MODULE (Modular v10)[cite: 2] -->
+<!-- FIREBASE SDKs & INTEGRATION MODULE (Modular v10) -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { 
@@ -1673,7 +1673,7 @@ try {
   auth = getAuth(app);
   db = getFirestore(app);
   firebaseInitialized = true;
-  console.log("Firebase initialized successfully.");[cite: 2]
+  console.log("Firebase initialized successfully.");
 } catch (e) {
   console.warn("Firebase initialization failed:", e);
 }
@@ -1741,7 +1741,7 @@ const CloudSyncService = (() => {
         };
         StorageService.save(false);
         await pushToFirestore(user.uid);
-        console.log("Local storage data successfully migrated to Firestore for user:", user.uid);[cite: 2]
+        console.log("Local storage data successfully migrated to Firestore for user:", user.uid);
       }
       App.renderAll();
     } catch (e) {
@@ -1787,8 +1787,8 @@ window.AccountModule = (() => {
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       await CloudSyncService.pullOrMigrate(cred.user);
-      alert("Succesvol ingelogd!");[cite: 2]
-      App.switchView("dashboard");[cite: 2]
+      alert("Succesvol ingelogd!");
+      App.switchView("dashboard");
     } catch (err) {
       alert("Inloggen mislukt: " + err.message);
     }
@@ -1813,8 +1813,8 @@ window.AccountModule = (() => {
       state.userProfile = { uid: cred.user.uid, name, email, grade, createdAt: new Date().toISOString() };
       StorageService.save(false);
       await CloudSyncService.pushToFirestore(cred.user.uid);
-      alert("Account aangemaakt en gegevens gesynchroniseerd met Firestore!");[cite: 2]
-      App.switchView("dashboard");[cite: 2]
+      alert("Account aangemaakt en gegevens gesynchroniseerd met Firestore!");
+      App.switchView("dashboard");
     } catch (err) {
       alert("Registreren mislukt: " + err.message);
     }
@@ -1829,8 +1829,8 @@ window.AccountModule = (() => {
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
       await CloudSyncService.pullOrMigrate(cred.user);
-      alert("Ingetekend met Google!");[cite: 2]
-      App.switchView("dashboard");[cite: 2]
+      alert("Ingetekend met Google!");
+      App.switchView("dashboard");
     } catch (err) {
       alert("Google login mislukt: " + err.message);
     }
@@ -1848,8 +1848,8 @@ window.AccountModule = (() => {
 
     try {
       await sendPasswordResetEmail(auth, email);
-      alert("Wachtwoord reset e-mail is verzonden!");[cite: 2]
-      toggleAuthMode("login");[cite: 2]
+      alert("Wachtwoord reset e-mail is verzonden!");
+      toggleAuthMode("login");
     } catch (err) {
       alert("Fout bij verzenden reset e-mail: " + err.message);
     }
