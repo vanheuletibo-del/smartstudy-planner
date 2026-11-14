@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data: https://www.gstatic.com https://*.googleapis.com https://*.firebaseio.com; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://*.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net; base-uri 'self'; form-action 'self';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data: https://www.gstatic.com https://*.googleapis.com https://*.firebaseio.com; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://*.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://*; base-uri 'self'; form-action 'self';">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#4f46e5">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>SmartStudy Planner — Firebase Cloud Edition</title>
+<title>SmartStudy Planner — Smartschool ICS Edition</title>
 <link id="pwaManifest" rel="manifest">
 
 <style>
@@ -519,7 +519,7 @@ body{ padding:10px; }
 <div id="splashScreen">
 <div style="font-size:56px; margin-bottom:12px;">📚</div>
 <h1 style="font-size:28px; font-weight:800;">SmartStudy Planner</h1>
-<p style="opacity:0.85; margin-top:6px;">Firebase Cloud Synchronized Edition</p>
+<p style="opacity:0.85; margin-top:6px;">Smartschool ICS & Firebase Synchronized Edition</p>
 </div>
 
 <div class="container">
@@ -537,6 +537,7 @@ body{ padding:10px; }
 <button id="tabDashboard" class="navBtn active" onclick="App.switchView('dashboard')">Dashboard</button>
 <button id="tabExams" class="navBtn" onclick="App.switchView('exams')">🎓 Examens</button>
 <button id="tabAvailability" class="navBtn" onclick="App.switchView('availability')">🕒 Beschikbaarheid</button>
+<button id="tabSmartschool" class="navBtn" onclick="App.switchView('smartschool')">🏫 Smartschool</button>
 <button id="tabFocus" class="navBtn" onclick="App.switchView('focus')">🎯 Focus Mode</button>
 <button id="tabJournal" class="navBtn" onclick="App.switchView('journal')">📓 Dagboek</button>
 <button id="tabStats" class="navBtn" onclick="App.switchView('stats')">📊 Statistieken</button>
@@ -693,6 +694,34 @@ body{ padding:10px; }
 </div>
 <p class="subText" style="margin-bottom:14px;">Stel per dag in wanneer je beschikbaar bent om te studeren en hoeveel uur je maximaal per dag wilt plannen.</p>
 <div id="availabilityRowsContainer"></div>
+</div>
+</section>
+
+<section id="smartschoolView" class="hidden" aria-label="Smartschool ICS Synchronisatie">
+<div class="card">
+<div class="card-header">
+<h2>🏫 Smartschool ICS Kalender & Examen Synchronisatie</h2>
+<span class="badge-pill sec-badge">Live ICS Feed Sync</span>
+</div>
+<p class="subText" style="margin-bottom:14px;">Plak je persoonlijke Smartschool kalender of examentest ICS-feed URL hieronder om automatisch je lessen, examens en deadlines in te laden en je gereedheidsscores te updaten.</p>
+<div class="formGrid" style="grid-template-columns:1fr; margin-bottom:16px;">
+<div class="field-group">
+<label for="icsUrlInput">Smartschool ICS Feed URL</label>
+<input id="icsUrlInput" placeholder="https://sintlodewijk.smartschool.be/ical/ical.ical?user=...&hash=...">
+</div>
+<div style="display:flex; gap:10px; flex-wrap:wrap;">
+<button class="btn-success" onclick="SmartschoolSync.importFromURL()">📥 ICS Importeren & Synchroniseren</button>
+<button class="btn-ghost" onclick="SmartschoolSync.importSampleICS()">🧪 Test met Voorbeeld ICS</button>
+</div>
+</div>
+</div>
+
+<div class="card">
+<div class="card-header">
+<h2>📋 Smartschool Synchronisatie Log & Geïmporteerde Items</h2>
+<button class="btn-danger" style="font-size:12px; padding:6px 10px;" onclick="SmartschoolSync.clearSmartschoolItems()">🗑️ Wis Smartschool Items</button>
+</div>
+<div id="smartschoolLogContainer"><p class="subText">Nog geen Smartschool items gesynchroniseerd.</p></div>
 </div>
 </section>
 
@@ -1023,6 +1052,7 @@ const StorageService = (() => {
     subjectGoals: {},
     studyHistory: [],
     journalEntries: [],
+    smartschoolSync: { lastSynced: null, icsUrl: "", importedItemsCount: 0 },
     musicLinks: [
       { name: "Lofi Study Beats", url: "https://www.youtube.com/watch?v=jfKfPfyJRdk" },
       { name: "Deep Focus Piano", url: "https://www.youtube.com/watch?v=4oStw0r33so" }
@@ -1037,7 +1067,7 @@ const StorageService = (() => {
       const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("smartstudy_v5_state");
       if (!raw) return structuredClone(defaultState);
       const parsed = JSON.parse(raw);
-      return { ...structuredClone(defaultState), ...parsed, settings: { ...defaultState.settings, ...(parsed.settings || {}) }, availability: { ...structuredClone(defaultAvailability), ...(parsed.availability || {}) }, gamification: { ...defaultState.gamification, ...(parsed.gamification || {}) } };
+      return { ...structuredClone(defaultState), ...parsed, settings: { ...defaultState.settings, ...(parsed.settings || {}) }, availability: { ...structuredClone(defaultAvailability), ...(parsed.availability || {}) }, smartschoolSync: { ...defaultState.smartschoolSync, ...(parsed.smartschoolSync || {}) }, gamification: { ...defaultState.gamification, ...(parsed.gamification || {}) } };
     } catch (e) {
       return structuredClone(defaultState);
     }
@@ -1133,58 +1163,223 @@ const BackupService = (() => {
   return { createManualBackup, restoreBackup, exportJSON, importJSON, renderBackupHistory };
 })();
 
-const AvailabilityModule = (() => {
-  function getDayConfig(dayIndex) {
-    return StorageService.getState().availability[dayIndex] || { enabled: false, start: "16:00", end: "18:00", maxHours: 0 };
-  }
-  function getAvailableMinutesForDay(dayIndex) {
-    const cfg = getDayConfig(dayIndex);
-    if (!cfg.enabled) return 0;
-    return Math.min(Math.max(0, Utils.timeToMinutes(cfg.end) - Utils.timeToMinutes(cfg.start)), Math.max(0, cfg.maxHours * 60));
-  }
-  function getAvailableHoursBetween(startDate, endDate) {
-    let totalMins = 0;
-    const cursor = new Date(startDate); cursor.setHours(0,0,0,0);
-    const end = new Date(endDate); end.setHours(0,0,0,0);
-    let safety = 0;
-    while (cursor <= end && safety < 365) {
-      totalMins += getAvailableMinutesForDay(cursor.getDay());
-      cursor.setDate(cursor.getDate() + 1);
-      safety++;
+const SmartschoolSync = (() => {
+  function parseICS(icsText) {
+    const events = [];
+    const lines = icsText.replace(/\r\n /g, "").replace(/\r\n\t/g, "").split(/\r\n|\n|\r/);
+    let currentEvent = null;
+
+    for (let line of lines) {
+      line = line.trim();
+      if (line === "BEGIN:VEVENT") {
+        currentEvent = {};
+      } else if (line === "END:VEVENT" && currentEvent) {
+        if (currentEvent.summary && (currentEvent.start || currentEvent.dtstart)) {
+          events.push(currentEvent);
+        }
+        currentEvent = null;
+      } else if (currentEvent) {
+        const colonIdx = line.indexOf(":");
+        if (colonIdx !== -1) {
+          let key = line.substring(0, colonIdx).trim();
+          const val = line.substring(colonIdx + 1).trim();
+          if (key.includes(";")) key = key.split(";")[0];
+          if (key === "SUMMARY") currentEvent.summary = val.replace(/\\n/g, " ").replace(/\\/g, "");
+          if (key === "DESCRIPTION") currentEvent.description = val.replace(/\\n/g, " ").replace(/\\/g, "");
+          if (key === "DTSTART" || key === "DTSTART;VALUE=DATE") currentEvent.start = val;
+          if (key === "DTEND" || key === "DTEND;VALUE=DATE") currentEvent.end = val;
+          if (key === "UID") currentEvent.uid = val;
+        }
+      }
     }
-    return +(totalMins / 60).toFixed(1);
+    return events;
   }
-  function renderAvailabilityUI() {
-    const container = document.getElementById("availabilityRowsContainer");
+
+  function parseICSDate(dateStr) {
+    if (!dateStr) return Utils.todayMidnight();
+    const clean = dateStr.replace(/[^0-9T]/g, "");
+    if (clean.length >= 8) {
+      const year = parseInt(clean.substring(0, 4), 10);
+      const month = parseInt(clean.substring(4, 6), 10) - 1;
+      const day = parseInt(clean.substring(6, 8), 10);
+      return new Date(year, month, day, 0, 0, 0, 0);
+    }
+    return Utils.todayMidnight();
+  }
+
+  async function importFromURL(customUrl) {
+    const urlInput = document.getElementById("icsUrlInput");
+    const url = customUrl || (urlInput ? urlInput.value.trim() : "");
+    if (!url) {
+      alert("Voer een geldige Smartschool ICS feed URL in.");
+      return;
+    }
+
+    try {
+      let icsText = "";
+      // Try direct fetch, fallback to CORS proxy if needed
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        icsText = await res.text();
+      } catch (err) {
+        const proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(url);
+        const res2 = await fetch(proxyUrl);
+        if (!res2.ok) throw new Error("CORS Proxy error");
+        icsText = await res2.text();
+      }
+
+      processICSData(icsText, url);
+    } catch (err) {
+      alert("Kan ICS feed niet ophalen (mogelijke CORS-beperking of ongeldige URL). Probeer de 'Test met Voorbeeld ICS' knop.");
+      console.error(err);
+    }
+  }
+
+  function importSampleICS() {
+    const sampleICS = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Smartschool//NONSGML Calendar//NL
+BEGIN:VEVENT
+UID:smartschool_exam_aut_2026_01
+SUMMARY:Examen Automatiseringstechnieken (AUT)
+DESCRIPTION:Hoofdstuk 1 t.e.m. 4 over sensoren en PLC.
+DTSTART;VALUE=DATE:20260615
+DTEND;VALUE=DATE:20260616
+END:VEVENT
+BEGIN:VEVENT
+UID:smartschool_task_wiskunde_2026_02
+SUMMARY:Taak Wiskunde: Integralen oefeningen
+DESCRIPTION:Maak oefening 1 tot 10 op pagina 140.
+DTSTART;VALUE=DATE:20260610
+DTEND;VALUE=DATE:20260611
+END:VEVENT
+BEGIN:VEVENT
+UID:smartschool_test_frans_2026_03
+SUMMARY:Overhoring Frans Vocabulaire
+DESCRIPTION:Unite 4 woordenlijst leren.
+DTSTART;VALUE=DATE:20260608
+DTEND;VALUE=DATE:20260609
+END:VEVENT
+END:VCALENDAR`;
+    processICSData(sampleICS, "Voorbeeld Smartschool ICS");
+  }
+
+  function processICSData(icsText, sourceLabel) {
+    const events = parseICS(icsText);
+    if (events.length === 0) {
+      alert("Geen geldige evenementen gevonden in de ICS feed.");
+      return;
+    }
+
+    const state = StorageService.getState();
+    let importedCount = 0;
+    let updatedCount = 0;
+
+    events.forEach(ev => {
+      const titleRaw = ev.summary || "Smartschool Item";
+      const desc = ev.description || "";
+      const deadlineDate = parseICSDate(ev.start || ev.dtstart);
+      const deadlineStr = Utils.toDateKey(deadlineDate);
+      const isExam = /examen|test|overhoring|toets/i.test(titleRaw);
+      
+      // Infer subject
+      let subject = "Smartschool";
+      const lower = titleRaw.toLowerCase();
+      if (lower.includes("aut") || lower.includes("automatisering")) subject = "AUT";
+      else if (lower.includes("wiskunde") || lower.includes("math")) subject = "Wiskunde";
+      else if (lower.includes("frans") || lower.includes("french")) subject = "Frans";
+      else if (lower.includes("engels") || lower.includes("english")) subject = "Engels";
+      else if (lower.includes("fysica") || lower.includes("physics")) subject = "Fysica";
+      else {
+        const parts = titleRaw.split(":");
+        if (parts.length > 1) subject = parts[0].trim();
+      }
+
+      const cleanTitle = titleRaw.includes(":") ? titleRaw.split(":")[1].trim() : titleRaw;
+      const uniqueUid = ev.uid || ("ss_" + titleRaw + "_" + deadlineStr);
+
+      // Check duplicate / existing
+      const existing = state.tasks.find(t => t.smartschoolUid === uniqueUid || (t.title === cleanTitle && t.deadline === deadlineStr));
+
+      if (existing) {
+        // Update existing item if changed
+        existing.title = cleanTitle;
+        existing.deadline = deadlineStr;
+        existing.subject = subject;
+        existing.isExam = isExam;
+        updatedCount++;
+      } else {
+        // Create new task/exam from ICS
+        state.tasks.push({
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          ownerId: state.ownerId,
+          smartschoolUid: uniqueUid,
+          title: cleanTitle,
+          subject: subject,
+          deadline: deadlineStr,
+          size: isExam ? "Groot" : "Middel",
+          duration: 30,
+          targetHours: isExam ? 4 : 2,
+          isExam: isExam,
+          chapters: desc ? desc.split(".").map(s => SecurityService.sanitizeText(s, 100)).filter(Boolean).map((ch, i) => ({ id: Date.now()+i, title: ch, completed: false, subtopics: [] })) : [],
+          completed: false,
+          createdAt: new Date().toISOString(),
+          source: "Smartschool"
+        });
+        importedCount++;
+      }
+    });
+
+    state.smartschoolSync = {
+      lastSynced: new Date().toISOString(),
+      icsUrl: sourceLabel,
+      importedItemsCount: state.tasks.filter(t => t.source === "Smartschool" || t.smartschoolUid).length
+    };
+
+    StorageService.save(true);
+    App.renderAll();
+    renderSmartschoolLog();
+    alert(`Smartschool Synchronisatie Voltooid!\n• Nieuw geïmporteerd: ${importedCount}\n• Bijgewerkt: ${updatedCount}\n• Totaal Smartschool items: ${state.smartschoolSync.importedItemsCount}`);
+  }
+
+  function renderSmartschoolLog() {
+    const container = document.getElementById("smartschoolLogContainer");
     if (!container) return;
     const state = StorageService.getState();
-    container.innerHTML = [1,2,3,4,5,6,0].map(dayIdx => {
-      const d = state.availability[dayIdx];
-      return `
-        <div class="avail-row">
-          <strong>${d.name}</strong>
-          <label class="checkbox-label" style="min-height:auto;"><input type="checkbox" id="avail_en_${dayIdx}" ${d.enabled ? "checked" : ""} style="width:auto;"> Actief</label>
-          <div class="field-group"><label>Start</label><input type="time" id="avail_start_${dayIdx}" value="${d.start}"></div>
-          <div class="field-group"><label>Eind</label><input type="time" id="avail_end_${dayIdx}" value="${d.end}"></div>
-          <div class="field-group"><label>Max uren</label><input type="number" step="0.5" min="0" max="16" id="avail_max_${dayIdx}" value="${d.maxHours}"></div>
+    const sync = state.smartschoolSync;
+    const ssTasks = state.tasks.filter(t => t.source === "Smartschool" || t.smartschoolUid);
+
+    container.innerHTML = `
+      <div class="stat-card" style="margin-bottom:12px;">
+        <p><strong>Laatste Sync:</strong> ${sync.lastSynced ? new Date(sync.lastSynced).toLocaleString("nl-BE") : "Nog niet gesynchroniseerd"}</p>
+        <p><strong>Bron / Feed:</strong> ${SecurityService.escapeHTML(sync.icsUrl || "Geen")}</p>
+        <p><strong>Actieve Smartschool Items:</strong> ${ssTasks.length}</p>
+      </div>
+      ${ssTasks.length === 0 ? `<p class="subText">Geen Smartschool items in je planner.</p>` : ssTasks.map(t => `
+        <div class="rec-row">
+          <div>
+            <strong>${t.isExam ? "🎓 Examen" : "📚 Taak"}: ${SecurityService.escapeHTML(t.subject)} — ${SecurityService.escapeHTML(t.title)}</strong>
+            <div class="subText">Deadline: ${t.deadline} • Omvang: ${t.size}</div>
+          </div>
+          <span class="badge-pill ${t.isExam ? "exam-badge" : "rev-badge"}">Smartschool</span>
         </div>
-      `;
-    }).join("");
+      `).join("")}
+    `;
   }
-  function saveFromUI() {
+
+  function clearSmartschoolItems() {
+    if (!confirm("Alle Smartschool gesynchroniseerde taken en examens verwijderen?")) return;
     const state = StorageService.getState();
-    [0,1,2,3,4,5,6].forEach(dayIdx => {
-      state.availability[dayIdx].enabled = document.getElementById(`avail_en_${dayIdx}`).checked;
-      state.availability[dayIdx].start = document.getElementById(`avail_start_${dayIdx}`).value || "16:00";
-      state.availability[dayIdx].end = document.getElementById(`avail_end_${dayIdx}`).value || "20:00";
-      state.availability[dayIdx].maxHours = Math.max(0, Math.min(16, parseFloat(document.getElementById(`avail_max_${dayIdx}`).value) || 0));
-    });
+    state.tasks = state.tasks.filter(t => !t.source && !t.smartschoolUid);
+    state.smartschoolSync = { lastSynced: null, icsUrl: "", importedItemsCount: 0 };
     StorageService.save(true);
-    renderAvailabilityUI();
     App.renderAll();
-    alert("Beschikbaarheid opgeslagen!");
+    renderSmartschoolLog();
+    alert("Smartschool items gewist.");
   }
-  return { getDayConfig, getAvailableMinutesForDay, getAvailableHoursBetween, renderAvailabilityUI, saveFromUI };
+
+  return { parseICS, importFromURL, importSampleICS, renderSmartschoolLog, clearSmartschoolItems };
 })();
 
 const ExamEngine = (() => {
@@ -1241,6 +1436,60 @@ const ExamEngine = (() => {
     }).sort((a,b) => b.urgencyWeight - a.urgencyWeight).slice(0, 4);
   }
   return { getSubjectStudiedMinutes, getChapterStats, getExamMetrics, getDailyRecommendations };
+})();
+
+const AvailabilityModule = (() => {
+  function getDayConfig(dayIndex) {
+    return StorageService.getState().availability[dayIndex] || { enabled: false, start: "16:00", end: "18:00", maxHours: 0 };
+  }
+  function getAvailableMinutesForDay(dayIndex) {
+    const cfg = getDayConfig(dayIndex);
+    if (!cfg.enabled) return 0;
+    return Math.min(Math.max(0, Utils.timeToMinutes(cfg.end) - Utils.timeToMinutes(cfg.start)), Math.max(0, cfg.maxHours * 60));
+  }
+  function getAvailableHoursBetween(startDate, endDate) {
+    let totalMins = 0;
+    const cursor = new Date(startDate); cursor.setHours(0,0,0,0);
+    const end = new Date(endDate); end.setHours(0,0,0,0);
+    let safety = 0;
+    while (cursor <= end && safety < 365) {
+      totalMins += getAvailableMinutesForDay(cursor.getDay());
+      cursor.setDate(cursor.getDate() + 1);
+      safety++;
+    }
+    return +(totalMins / 60).toFixed(1);
+  }
+  function renderAvailabilityUI() {
+    const container = document.getElementById("availabilityRowsContainer");
+    if (!container) return;
+    const state = StorageService.getState();
+    container.innerHTML = [1,2,3,4,5,6,0].map(dayIdx => {
+      const d = state.availability[dayIdx];
+      return `
+        <div class="avail-row">
+          <strong>${d.name}</strong>
+          <label class="checkbox-label" style="min-height:auto;"><input type="checkbox" id="avail_en_${dayIdx}" ${d.enabled ? "checked" : ""} style="width:auto;"> Actief</label>
+          <div class="field-group"><label>Start</label><input type="time" id="avail_start_${dayIdx}" value="${d.start}"></div>
+          <div class="field-group"><label>Eind</label><input type="time" id="avail_end_${dayIdx}" value="${d.end}"></div>
+          <div class="field-group"><label>Max uren</label><input type="number" step="0.5" min="0" max="16" id="avail_max_${dayIdx}" value="${d.maxHours}"></div>
+        </div>
+      `;
+    }).join("");
+  }
+  function saveFromUI() {
+    const state = StorageService.getState();
+    [0,1,2,3,4,5,6].forEach(dayIdx => {
+      state.availability[dayIdx].enabled = document.getElementById(`avail_en_${dayIdx}`).checked;
+      state.availability[dayIdx].start = document.getElementById(`avail_start_${dayIdx}`).value || "16:00";
+      state.availability[dayIdx].end = document.getElementById(`avail_end_${dayIdx}`).value || "20:00";
+      state.availability[dayIdx].maxHours = Math.max(0, Math.min(16, parseFloat(document.getElementById(`avail_max_${dayIdx}`).value) || 0));
+    });
+    StorageService.save(true);
+    renderAvailabilityUI();
+    App.renderAll();
+    alert("Beschikbaarheid opgeslagen!");
+  }
+  return { getDayConfig, getAvailableMinutesForDay, getAvailableHoursBetween, renderAvailabilityUI, saveFromUI };
 })();
 
 const PlannerEngine = (() => {
@@ -1476,13 +1725,14 @@ const App = (() => {
   }
 
   function switchView(view) {
-    ["dashboard", "exams", "availability", "focus", "journal", "stats", "account"].forEach(v => {
+    ["dashboard", "exams", "availability", "smartschool", "focus", "journal", "stats", "account"].forEach(v => {
       document.getElementById(v + "View").classList.toggle("hidden", v !== view);
       const tab = document.getElementById("tab" + v.charAt(0).toUpperCase() + v.slice(1));
       if (tab) tab.classList.toggle("active", v === view);
     });
     if (view === "exams") renderDedicatedExamDashboard();
     if (view === "availability") AvailabilityModule.renderAvailabilityUI();
+    if (view === "smartschool") SmartschoolSync.renderSmartschoolLog();
     if (view === "stats") renderStatsPage();
     if (view === "journal") renderJournalPage();
     if (view === "account") AccountModule.renderAccount();
@@ -1605,7 +1855,7 @@ const App = (() => {
           <label><input type="checkbox" ${t.completed?"checked":""} onchange="App.toggleTask(${t.id})"> <strong>${SecurityService.escapeHTML(t.title)}</strong></label>
           <button onclick="App.deleteTask(${t.id})" class="btn-ghost" style="color:var(--danger); padding:2px 6px;">🗑️</button>
         </div>
-        <div class="subText">${SecurityService.escapeHTML(t.subject)} • 📅 ${t.deadline}</div>
+        <div class="subText">${SecurityService.escapeHTML(t.subject)} • 📅 ${t.deadline} ${t.source ? "• 🏫 " + t.source : ""}</div>
       </div>
     `).join("");
   }
@@ -1702,6 +1952,7 @@ const CloudSyncService = (() => {
         subjectGoals: state.subjectGoals,
         studyHistory: state.studyHistory,
         journalEntries: state.journalEntries,
+        smartschoolSync: state.smartschoolSync,
         gamification: state.gamification,
         lastSynced: new Date().toISOString()
       }, { merge: true });
@@ -1729,6 +1980,7 @@ const CloudSyncService = (() => {
         state.subjectGoals = cloudData.subjectGoals || state.subjectGoals;
         state.studyHistory = cloudData.studyHistory || state.studyHistory;
         state.journalEntries = cloudData.journalEntries || state.journalEntries;
+        state.smartschoolSync = cloudData.smartschoolSync || state.smartschoolSync;
         state.gamification = cloudData.gamification || state.gamification;
         StorageService.save(false);
       } else {
