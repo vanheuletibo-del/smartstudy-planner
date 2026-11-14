@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data: https://www.gstatic.com https://*.googleapis.com https://*.firebaseio.com; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://*.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net; base-uri 'self'; form-action 'self';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data: https://www.gstatic.com https://*.googleapis.com https://*.firebaseio.com; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://*.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://*; base-uri 'self'; form-action 'self';">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#4f46e5">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>SmartStudy Planner — Firebase Cloud Edition</title>
+<title>SmartStudy Planner — Smartschool ICS Edition</title>
 <link id="pwaManifest" rel="manifest">
 
 <style>
@@ -519,7 +519,7 @@ body{ padding:10px; }
 <div id="splashScreen">
 <div style="font-size:56px; margin-bottom:12px;">📚</div>
 <h1 style="font-size:28px; font-weight:800;">SmartStudy Planner</h1>
-<p style="opacity:0.85; margin-top:6px;">Firebase Cloud Synchronized Edition</p>
+<p style="opacity:0.85; margin-top:6px;">Smartschool ICS & Firebase Synchronized Edition</p>
 </div>
 
 <div class="container">
@@ -537,6 +537,7 @@ body{ padding:10px; }
 <button id="tabDashboard" class="navBtn active" onclick="App.switchView('dashboard')">Dashboard</button>
 <button id="tabExams" class="navBtn" onclick="App.switchView('exams')">🎓 Examens</button>
 <button id="tabAvailability" class="navBtn" onclick="App.switchView('availability')">🕒 Beschikbaarheid</button>
+<button id="tabSmartschool" class="navBtn" onclick="App.switchView('smartschool')">🏫 Smartschool</button>
 <button id="tabFocus" class="navBtn" onclick="App.switchView('focus')">🎯 Focus Mode</button>
 <button id="tabJournal" class="navBtn" onclick="App.switchView('journal')">📓 Dagboek</button>
 <button id="tabStats" class="navBtn" onclick="App.switchView('stats')">📊 Statistieken</button>
@@ -693,6 +694,34 @@ body{ padding:10px; }
 </div>
 <p class="subText" style="margin-bottom:14px;">Stel per dag in wanneer je beschikbaar bent om te studeren en hoeveel uur je maximaal per dag wilt plannen.</p>
 <div id="availabilityRowsContainer"></div>
+</div>
+</section>
+
+<section id="smartschoolView" class="hidden" aria-label="Smartschool ICS Synchronisatie">
+<div class="card">
+<div class="card-header">
+<h2>🏫 Smartschool ICS Kalender & Examen Synchronisatie</h2>
+<span class="badge-pill sec-badge">Live ICS Feed Sync</span>
+</div>
+<p class="subText" style="margin-bottom:14px;">Plak je persoonlijke Smartschool kalender of examentest ICS-feed URL hieronder om automatisch je lessen, examens en deadlines in te laden en je gereedheidsscores te updaten.</p>
+<div class="formGrid" style="grid-template-columns:1fr; margin-bottom:16px;">
+<div class="field-group">
+<label for="icsUrlInput">Smartschool ICS Feed URL</label>
+<input id="icsUrlInput" placeholder="https://sintlodewijk.smartschool.be/ical/ical.ical?user=...&hash=...">
+</div>
+<div style="display:flex; gap:10px; flex-wrap:wrap;">
+<button class="btn-success" onclick="SmartschoolSync.importFromURL()">📥 ICS Importeren & Synchroniseren</button>
+<button class="btn-ghost" onclick="SmartschoolSync.importSampleICS()">🧪 Test met Voorbeeld ICS</button>
+</div>
+</div>
+</div>
+
+<div class="card">
+<div class="card-header">
+<h2>📋 Smartschool Synchronisatie Log & Geïmporteerde Items</h2>
+<button class="btn-danger" style="font-size:12px; padding:6px 10px;" onclick="SmartschoolSync.clearSmartschoolItems()">🗑️ Wis Smartschool Items</button>
+</div>
+<div id="smartschoolLogContainer"><p class="subText">Nog geen Smartschool items gesynchroniseerd.</p></div>
 </div>
 </section>
 
@@ -1023,6 +1052,7 @@ const StorageService = (() => {
     subjectGoals: {},
     studyHistory: [],
     journalEntries: [],
+    smartschoolSync: { lastSynced: null, icsUrl: "", importedItemsCount: 0 },
     musicLinks: [
       { name: "Lofi Study Beats", url: "https://www.youtube.com/watch?v=jfKfPfyJRdk" },
       { name: "Deep Focus Piano", url: "https://www.youtube.com/watch?v=4oStw0r33so" }
@@ -1037,7 +1067,7 @@ const StorageService = (() => {
       const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("smartstudy_v5_state");
       if (!raw) return structuredClone(defaultState);
       const parsed = JSON.parse(raw);
-      return { ...structuredClone(defaultState), ...parsed, settings: { ...defaultState.settings, ...(parsed.settings || {}) }, availability: { ...structuredClone(defaultAvailability), ...(parsed.availability || {}) }, gamification: { ...defaultState.gamification, ...(parsed.gamification || {}) } };
+      return { ...structuredClone(defaultState), ...parsed, settings: { ...defaultState.settings, ...(parsed.settings || {}) }, availability: { ...structuredClone(defaultAvailability), ...(parsed.availability || {}) }, smartschoolSync: { ...defaultState.smartschoolSync, ...(parsed.smartschoolSync || {}) }, gamification: { ...defaultState.gamification, ...(parsed.gamification || {}) } };
     } catch (e) {
       return structuredClone(defaultState);
     }
@@ -1133,58 +1163,223 @@ const BackupService = (() => {
   return { createManualBackup, restoreBackup, exportJSON, importJSON, renderBackupHistory };
 })();
 
-const AvailabilityModule = (() => {
-  function getDayConfig(dayIndex) {
-    return StorageService.getState().availability[dayIndex] || { enabled: false, start: "16:00", end: "18:00", maxHours: 0 };
-  }
-  function getAvailableMinutesForDay(dayIndex) {
-    const cfg = getDayConfig(dayIndex);
-    if (!cfg.enabled) return 0;
-    return Math.min(Math.max(0, Utils.timeToMinutes(cfg.end) - Utils.timeToMinutes(cfg.start)), Math.max(0, cfg.maxHours * 60));
-  }
-  function getAvailableHoursBetween(startDate, endDate) {
-    let totalMins = 0;
-    const cursor = new Date(startDate); cursor.setHours(0,0,0,0);
-    const end = new Date(endDate); end.setHours(0,0,0,0);
-    let safety = 0;
-    while (cursor <= end && safety < 365) {
-      totalMins += getAvailableMinutesForDay(cursor.getDay());
-      cursor.setDate(cursor.getDate() + 1);
-      safety++;
+const SmartschoolSync = (() => {
+  function parseICS(icsText) {
+    const events = [];
+    const lines = icsText.replace(/\r\n /g, "").replace(/\r\n\t/g, "").split(/\r\n|\n|\r/);
+    let currentEvent = null;
+
+    for (let line of lines) {
+      line = line.trim();
+      if (line === "BEGIN:VEVENT") {
+        currentEvent = {};
+      } else if (line === "END:VEVENT" && currentEvent) {
+        if (currentEvent.summary && (currentEvent.start || currentEvent.dtstart)) {
+          events.push(currentEvent);
+        }
+        currentEvent = null;
+      } else if (currentEvent) {
+        const colonIdx = line.indexOf(":");
+        if (colonIdx !== -1) {
+          let key = line.substring(0, colonIdx).trim();
+          const val = line.substring(colonIdx + 1).trim();
+          if (key.includes(";")) key = key.split(";")[0];
+          if (key === "SUMMARY") currentEvent.summary = val.replace(/\\n/g, " ").replace(/\\/g, "");
+          if (key === "DESCRIPTION") currentEvent.description = val.replace(/\\n/g, " ").replace(/\\/g, "");
+          if (key === "DTSTART" || key === "DTSTART;VALUE=DATE") currentEvent.start = val;
+          if (key === "DTEND" || key === "DTEND;VALUE=DATE") currentEvent.end = val;
+          if (key === "UID") currentEvent.uid = val;
+        }
+      }
     }
-    return +(totalMins / 60).toFixed(1);
+    return events;
   }
-  function renderAvailabilityUI() {
-    const container = document.getElementById("availabilityRowsContainer");
+
+  function parseICSDate(dateStr) {
+    if (!dateStr) return Utils.todayMidnight();
+    const clean = dateStr.replace(/[^0-9T]/g, "");
+    if (clean.length >= 8) {
+      const year = parseInt(clean.substring(0, 4), 10);
+      const month = parseInt(clean.substring(4, 6), 10) - 1;
+      const day = parseInt(clean.substring(6, 8), 10);
+      return new Date(year, month, day, 0, 0, 0, 0);
+    }
+    return Utils.todayMidnight();
+  }
+
+  async function importFromURL(customUrl) {
+    const urlInput = document.getElementById("icsUrlInput");
+    const url = customUrl || (urlInput ? urlInput.value.trim() : "");
+    if (!url) {
+      alert("Voer een geldige Smartschool ICS feed URL in.");
+      return;
+    }
+
+    try {
+      let icsText = "";
+      // Try direct fetch, fallback to CORS proxy if needed
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        icsText = await res.text();
+      } catch (err) {
+        const proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(url);
+        const res2 = await fetch(proxyUrl);
+        if (!res2.ok) throw new Error("CORS Proxy error");
+        icsText = await res2.text();
+      }
+
+      processICSData(icsText, url);
+    } catch (err) {
+      alert("Kan ICS feed niet ophalen (mogelijke CORS-beperking of ongeldige URL). Probeer de 'Test met Voorbeeld ICS' knop.");
+      console.error(err);
+    }
+  }
+
+  function importSampleICS() {
+    const sampleICS = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Smartschool//NONSGML Calendar//NL
+BEGIN:VEVENT
+UID:smartschool_exam_aut_2026_01
+SUMMARY:Examen Automatiseringstechnieken (AUT)
+DESCRIPTION:Hoofdstuk 1 t.e.m. 4 over sensoren en PLC.
+DTSTART;VALUE=DATE:20260615
+DTEND;VALUE=DATE:20260616
+END:VEVENT
+BEGIN:VEVENT
+UID:smartschool_task_wiskunde_2026_02
+SUMMARY:Taak Wiskunde: Integralen oefeningen
+DESCRIPTION:Maak oefening 1 tot 10 op pagina 140.
+DTSTART;VALUE=DATE:20260610
+DTEND;VALUE=DATE:20260611
+END:VEVENT
+BEGIN:VEVENT
+UID:smartschool_test_frans_2026_03
+SUMMARY:Overhoring Frans Vocabulaire
+DESCRIPTION:Unite 4 woordenlijst leren.
+DTSTART;VALUE=DATE:20260608
+DTEND;VALUE=DATE:20260609
+END:VEVENT
+END:VCALENDAR`;
+    processICSData(sampleICS, "Voorbeeld Smartschool ICS");
+  }
+
+  function processICSData(icsText, sourceLabel) {
+    const events = parseICS(icsText);
+    if (events.length === 0) {
+      alert("Geen geldige evenementen gevonden in de ICS feed.");
+      return;
+    }
+
+    const state = StorageService.getState();
+    let importedCount = 0;
+    let updatedCount = 0;
+
+    events.forEach(ev => {
+      const titleRaw = ev.summary || "Smartschool Item";
+      const desc = ev.description || "";
+      const deadlineDate = parseICSDate(ev.start || ev.dtstart);
+      const deadlineStr = Utils.toDateKey(deadlineDate);
+      const isExam = /examen|test|overhoring|toets/i.test(titleRaw);
+      
+      // Infer subject
+      let subject = "Smartschool";
+      const lower = titleRaw.toLowerCase();
+      if (lower.includes("aut") || lower.includes("automatisering")) subject = "AUT";
+      else if (lower.includes("wiskunde") || lower.includes("math")) subject = "Wiskunde";
+      else if (lower.includes("frans") || lower.includes("french")) subject = "Frans";
+      else if (lower.includes("engels") || lower.includes("english")) subject = "Engels";
+      else if (lower.includes("fysica") || lower.includes("physics")) subject = "Fysica";
+      else {
+        const parts = titleRaw.split(":");
+        if (parts.length > 1) subject = parts[0].trim();
+      }
+
+      const cleanTitle = titleRaw.includes(":") ? titleRaw.split(":")[1].trim() : titleRaw;
+      const uniqueUid = ev.uid || ("ss_" + titleRaw + "_" + deadlineStr);
+
+      // Check duplicate / existing
+      const existing = state.tasks.find(t => t.smartschoolUid === uniqueUid || (t.title === cleanTitle && t.deadline === deadlineStr));
+
+      if (existing) {
+        // Update existing item if changed
+        existing.title = cleanTitle;
+        existing.deadline = deadlineStr;
+        existing.subject = subject;
+        existing.isExam = isExam;
+        updatedCount++;
+      } else {
+        // Create new task/exam from ICS
+        state.tasks.push({
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          ownerId: state.ownerId,
+          smartschoolUid: uniqueUid,
+          title: cleanTitle,
+          subject: subject,
+          deadline: deadlineStr,
+          size: isExam ? "Groot" : "Middel",
+          duration: 30,
+          targetHours: isExam ? 4 : 2,
+          isExam: isExam,
+          chapters: desc ? desc.split(".").map(s => SecurityService.sanitizeText(s, 100)).filter(Boolean).map((ch, i) => ({ id: Date.now()+i, title: ch, completed: false, subtopics: [] })) : [],
+          completed: false,
+          createdAt: new Date().toISOString(),
+          source: "Smartschool"
+        });
+        importedCount++;
+      }
+    });
+
+    state.smartschoolSync = {
+      lastSynced: new Date().toISOString(),
+      icsUrl: sourceLabel,
+      importedItemsCount: state.tasks.filter(t => t.source === "Smartschool" || t.smartschoolUid).length
+    };
+
+    StorageService.save(true);
+    App.renderAll();
+    renderSmartschoolLog();
+    alert(`Smartschool Synchronisatie Voltooid!\n• Nieuw geïmporteerd: ${importedCount}\n• Bijgewerkt: ${updatedCount}\n• Totaal Smartschool items: ${state.smartschoolSync.importedItemsCount}`);
+  }
+
+  function renderSmartschoolLog() {
+    const container = document.getElementById("smartschoolLogContainer");
     if (!container) return;
     const state = StorageService.getState();
-    container.innerHTML = [1,2,3,4,5,6,0].map(dayIdx => {
-      const d = state.availability[dayIdx];
-      return `
-        <div class="avail-row">
-          <strong>${d.name}</strong>
-          <label class="checkbox-label" style="min-height:auto;"><input type="checkbox" id="avail_en_${dayIdx}" ${d.enabled ? "checked" : ""} style="width:auto;"> Actief</label>
-          <div class="field-group"><label>Start</label><input type="time" id="avail_start_${dayIdx}" value="${d.start}"></div>
-          <div class="field-group"><label>Eind</label><input type="time" id="avail_end_${dayIdx}" value="${d.end}"></div>
-          <div class="field-group"><label>Max uren</label><input type="number" step="0.5" min="0" max="16" id="avail_max_${dayIdx}" value="${d.maxHours}"></div>
+    const sync = state.smartschoolSync;
+    const ssTasks = state.tasks.filter(t => t.source === "Smartschool" || t.smartschoolUid);
+
+    container.innerHTML = `
+      <div class="stat-card" style="margin-bottom:12px;">
+        <p><strong>Laatste Sync:</strong> ${sync.lastSynced ? new Date(sync.lastSynced).toLocaleString("nl-BE") : "Nog niet gesynchroniseerd"}</p>
+        <p><strong>Bron / Feed:</strong> ${SecurityService.escapeHTML(sync.icsUrl || "Geen")}</p>
+        <p><strong>Actieve Smartschool Items:</strong> ${ssTasks.length}</p>
+      </div>
+      ${ssTasks.length === 0 ? `<p class="subText">Geen Smartschool items in je planner.</p>` : ssTasks.map(t => `
+        <div class="rec-row">
+          <div>
+            <strong>${t.isExam ? "🎓 Examen" : "📚 Taak"}: ${SecurityService.escapeHTML(t.subject)} — ${SecurityService.escapeHTML(t.title)}</strong>
+            <div class="subText">Deadline: ${t.deadline} • Omvang: ${t.size}</div>
+          </div>
+          <span class="badge-pill ${t.isExam ? "exam-badge" : "rev-badge"}">Smartschool</span>
         </div>
-      `;
-    }).join("");
+      `).join("")}
+    `;
   }
-  function saveFromUI() {
+
+  function clearSmartschoolItems() {
+    if (!confirm("Alle Smartschool gesynchroniseerde taken en examens verwijderen?")) return;
     const state = StorageService.getState();
-    [0,1,2,3,4,5,6].forEach(dayIdx => {
-      state.availability[dayIdx].enabled = document.getElementById(`avail_en_${dayIdx}`).checked;
-      state.availability[dayIdx].start = document.getElementById(`avail_start_${dayIdx}`).value || "16:00";
-      state.availability[dayIdx].end = document.getElementById(`avail_end_${dayIdx}`).value || "20:00";
-      state.availability[dayIdx].maxHours = Math.max(0, Math.min(16, parseFloat(document.getElementById(`avail_max_${dayIdx}`).value) || 0));
-    });
+    state.tasks = state.tasks.filter(t => !t.source && !t.smartschoolUid);
+    state.smartschoolSync = { lastSynced: null, icsUrl: "", importedItemsCount: 0 };
     StorageService.save(true);
-    renderAvailabilityUI();
     App.renderAll();
-    alert("Beschikbaarheid opgeslagen!");
+    renderSmartschoolLog();
+    alert("Smartschool items gewist.");
   }
-  return { getDayConfig, getAvailableMinutesForDay, getAvailableHoursBetween, renderAvailabilityUI, saveFromUI };
+
+  return { parseICS, importFromURL, importSampleICS, renderSmartschoolLog, clearSmartschoolItems };
 })();
 
 const ExamEngine = (() => {
@@ -1241,6 +1436,60 @@ const ExamEngine = (() => {
     }).sort((a,b) => b.urgencyWeight - a.urgencyWeight).slice(0, 4);
   }
   return { getSubjectStudiedMinutes, getChapterStats, getExamMetrics, getDailyRecommendations };
+})();
+
+const AvailabilityModule = (() => {
+  function getDayConfig(dayIndex) {
+    return StorageService.getState().availability[dayIndex] || { enabled: false, start: "16:00", end: "18:00", maxHours: 0 };
+  }
+  function getAvailableMinutesForDay(dayIndex) {
+    const cfg = getDayConfig(dayIndex);
+    if (!cfg.enabled) return 0;
+    return Math.min(Math.max(0, Utils.timeToMinutes(cfg.end) - Utils.timeToMinutes(cfg.start)), Math.max(0, cfg.maxHours * 60));
+  }
+  function getAvailableHoursBetween(startDate, endDate) {
+    let totalMins = 0;
+    const cursor = new Date(startDate); cursor.setHours(0,0,0,0);
+    const end = new Date(endDate); end.setHours(0,0,0,0);
+    let safety = 0;
+    while (cursor <= end && safety < 365) {
+      totalMins += getAvailableMinutesForDay(cursor.getDay());
+      cursor.setDate(cursor.getDate() + 1);
+      safety++;
+    }
+    return +(totalMins / 60).toFixed(1);
+  }
+  function renderAvailabilityUI() {
+    const container = document.getElementById("availabilityRowsContainer");
+    if (!container) return;
+    const state = StorageService.getState();
+    container.innerHTML = [1,2,3,4,5,6,0].map(dayIdx => {
+      const d = state.availability[dayIdx];
+      return `
+        <div class="avail-row">
+          <strong>${d.name}</strong>
+          <label class="checkbox-label" style="min-height:auto;"><input type="checkbox" id="avail_en_${dayIdx}" ${d.enabled ? "checked" : ""} style="width:auto;"> Actief</label>
+          <div class="field-group"><label>Start</label><input type="time" id="avail_start_${dayIdx}" value="${d.start}"></div>
+          <div class="field-group"><label>Eind</label><input type="time" id="avail_end_${dayIdx}" value="${d.end}"></div>
+          <div class="field-group"><label>Max uren</label><input type="number" step="0.5" min="0" max="16" id="avail_max_${dayIdx}" value="${d.maxHours}"></div>
+        </div>
+      `;
+    }).join("");
+  }
+  function saveFromUI() {
+    const state = StorageService.getState();
+    [0,1,2,3,4,5,6].forEach(dayIdx => {
+      state.availability[dayIdx].enabled = document.getElementById(`avail_en_${dayIdx}`).checked;
+      state.availability[dayIdx].start = document.getElementById(`avail_start_${dayIdx}`).value || "16:00";
+      state.availability[dayIdx].end = document.getElementById(`avail_end_${dayIdx}`).value || "20:00";
+      state.availability[dayIdx].maxHours = Math.max(0, Math.min(16, parseFloat(document.getElementById(`avail_max_${dayIdx}`).value) || 0));
+    });
+    StorageService.save(true);
+    renderAvailabilityUI();
+    App.renderAll();
+    alert("Beschikbaarheid opgeslagen!");
+  }
+  return { getDayConfig, getAvailableMinutesForDay, getAvailableHoursBetween, renderAvailabilityUI, saveFromUI };
 })();
 
 const PlannerEngine = (() => {
@@ -1411,495 +1660,4 @@ const FocusMode = (() => {
       if (mode === "pomodoro") {
         remainingSeconds--;
         if (!isBreak) elapsed++;
-        if (remainingSeconds <= 0) { isBreak = !isBreak; remainingSeconds = (isBreak ? breakMinutes : studyMinutes) * 60; }
-      } else { elapsed++; }
-      updateDisplay();
-    }, 1000);
-  }
-  function pause() {
-    if (!interval) return;
-    clearInterval(interval); interval = null; pauses++;
-    document.getElementById("startTimerBtn").disabled = false;
-    document.getElementById("pauseTimerBtn").disabled = true;
-  }
-  function completeAndSave() {
-    if (interval) clearInterval(interval); interval = null;
-    const state = StorageService.getState();
-    const taskId = parseInt(document.getElementById("timerTaskSelect").value, 10);
-    const task = state.tasks.find(t => t.id === taskId);
-    const mins = Math.max(1, Math.round(elapsed / 60));
-
-    state.studyHistory.push({
-      id: Date.now(),
-      ownerId: state.ownerId,
-      taskId: task ? task.id : null,
-      taskTitle: task ? task.title : "Vrije Sessie",
-      subject: task ? task.subject : "Algemeen",
-      durationMinutes: mins,
-      pauses,
-      date: new Date().toISOString(),
-      notes: { studied: SecurityService.sanitizeText(document.getElementById("noteStudied").value, 250), problems: SecurityService.sanitizeText(document.getElementById("noteProblems").value, 250), revision: SecurityService.sanitizeText(document.getElementById("noteRevision").value, 500) }
-    });
-
-    Gamification.awardXP(10, `Sessie (${mins}m)`);
-    StorageService.save(true);
-    document.getElementById("stopTimerBtn").disabled = true;
-    elapsed = 0; remainingSeconds = studyMinutes * 60; isBreak = false; pauses = 0;
-    updateDisplay();
-    App.renderAll();
-    alert(`Sessie opgeslagen! +10 XP`);
-  }
-  function toggleFullscreen() { document.getElementById("focusView").classList.toggle("fullscreen-active"); }
-  return { setPreset, setStopwatch, start, pause, completeAndSave, toggleFullscreen };
-})();
-
-const PWA = {
-  init() {
-    setTimeout(() => { document.getElementById("splashScreen").classList.add("fade-out"); }, 400);
-  },
-  installApp() {},
-  applyUpdate() { window.location.reload(); }
-};
-
-const App = (() => {
-  function init() {
-    const state = StorageService.getState();
-    if (state.settings.darkMode) document.body.classList.add("dark");
-    document.getElementById("themeToggle").addEventListener("click", () => {
-      document.body.classList.toggle("dark");
-      state.settings.darkMode = document.body.classList.contains("dark");
-      StorageService.save();
-    });
-    document.getElementById("addTask").addEventListener("click", handleAddTask);
-    PWA.init();
-    renderAll();
-  }
-
-  function switchView(view) {
-    ["dashboard", "exams", "availability", "focus", "journal", "stats", "account"].forEach(v => {
-      document.getElementById(v + "View").classList.toggle("hidden", v !== view);
-      const tab = document.getElementById("tab" + v.charAt(0).toUpperCase() + v.slice(1));
-      if (tab) tab.classList.toggle("active", v === view);
-    });
-    if (view === "exams") renderDedicatedExamDashboard();
-    if (view === "availability") AvailabilityModule.renderAvailabilityUI();
-    if (view === "stats") renderStatsPage();
-    if (view === "journal") renderJournalPage();
-    if (view === "account") AccountModule.renderAccount();
-  }
-
-  function handleAddTask() {
-    const title = SecurityService.sanitizeText(document.getElementById("title").value, 120);
-    const subject = SecurityService.sanitizeText(document.getElementById("subject").value, 60) || "Algemeen";
-    const deadline = document.getElementById("deadline").value;
-    const size = document.getElementById("size").value;
-    const duration = parseInt(document.getElementById("duration").value, 10) || 30;
-    const targetHours = parseFloat(document.getElementById("targetHours").value) || 3;
-    const isExam = document.getElementById("isExam").checked;
-    const chaptersRaw = SecurityService.sanitizeText(document.getElementById("chaptersInput").value, 400);
-
-    if (!title || !deadline) { alert("Vul titel en deadline in."); return; }
-    const chapters = chaptersRaw ? chaptersRaw.split(",").map(s => SecurityService.sanitizeText(s, 100)).filter(Boolean).map((ch, i) => ({ id: Date.now()+i, title: ch, completed: false, subtopics: [] })) : [];
-
-    const state = StorageService.getState();
-    state.tasks.push({ id: Date.now(), ownerId: state.ownerId, title, subject, deadline, size, duration, targetHours, isExam, chapters, completed: false, createdAt: new Date().toISOString() });
-    StorageService.save(true);
-    renderAll();
-  }
-
-  function toggleTask(id) {
-    const task = StorageService.getState().tasks.find(t => t.id === id);
-    if (!task) return;
-    task.completed = !task.completed;
-    if (task.completed) Gamification.awardXP(task.isExam ? 100 : 25, `Voltooid: ${task.title}`);
-    StorageService.save(true);
-    renderAll();
-  }
-
-  function toggleChapter(taskId, chapterId) {
-    const task = StorageService.getState().tasks.find(t => t.id === taskId);
-    const ch = task?.chapters.find(c => c.id === chapterId);
-    if (!ch) return;
-    ch.completed = !ch.completed;
-    if (ch.completed) Gamification.awardXP(5, `Hoofdstuk: ${ch.title}`);
-    StorageService.save(true);
-    renderAll();
-  }
-
-  function addChapterToTask(taskId) {
-    const title = SecurityService.sanitizeText(prompt("Nieuw hoofdstuk:"), 100);
-    if (!title) return;
-    StorageService.getState().tasks.find(t => t.id === taskId)?.chapters.push({ id: Date.now(), title, completed: false, subtopics: [] });
-    StorageService.save(true);
-    renderAll();
-  }
-
-  function deleteTask(id) {
-    if (!confirm("Verwijderen?")) return;
-    const state = StorageService.getState();
-    state.tasks = state.tasks.filter(t => t.id !== id);
-    StorageService.save(true);
-    renderAll();
-  }
-
-  function renderAll() {
-    renderDashboardMetrics();
-    renderRecommendations();
-    renderRealWorkloadPanel();
-    renderTasks();
-    CalendarUI.render();
-    populateTimerSelect();
-  }
-
-  function renderDashboardMetrics() {
-    const state = StorageService.getState();
-    const activeTasks = state.tasks.filter(t => !t.completed);
-    document.getElementById("schoolYearExams").innerText = `${activeTasks.filter(t => t.isExam).length} / ${activeTasks.length}`;
-    document.getElementById("completedCount").innerText = `${state.tasks.filter(t => t.completed).length} / ${state.tasks.length}`;
-    const totalMins = state.studyHistory.reduce((s, h) => s + (h.durationMinutes || 0), 0);
-    document.getElementById("totalRealStudyTime").innerText = `${(totalMins/60).toFixed(1)}u`;
-    const xp = state.gamification.xp;
-    document.getElementById("levelDisplay").innerText = `Niveau ${Math.floor(xp/100)+1}`;
-    document.getElementById("xpDisplay").innerText = `${xp%100} / 100 XP • 🔥 ${Gamification.calculateStreak()}d streak`;
-    document.getElementById("xpProgressFill").style.width = `${xp%100}%`;
-  }
-
-  function renderRecommendations() {
-    const list = document.getElementById("recommendedTodayList");
-    const recs = ExamEngine.getDailyRecommendations();
-    list.innerHTML = recs.length === 0 ? `<p class="subText">Geen taken.</p>` : recs.map(r => `<div class="rec-row"><span>${SecurityService.escapeHTML(r.label)}</span><span style="color:var(--primary);">${r.minutes} min</span></div>`).join("");
-  }
-
-  function renderRealWorkloadPanel() {
-    const container = document.getElementById("realWorkloadPanel");
-    const exams = StorageService.getState().tasks.filter(t => t.isExam && !t.completed);
-    container.innerHTML = exams.length === 0 ? `<p class="subText">Geen examens.</p>` : exams.slice(0,3).map(exam => {
-      const m = ExamEngine.getExamMetrics(exam);
-      return `<div class="stat-card" style="margin-bottom:8px; padding:12px;"><strong>🎓 ${SecurityService.escapeHTML(exam.subject)}</strong><div class="subText">Resterend: ${m.remainingHours}u | Gereed: ${m.readiness}%</div></div>`;
-    }).join("");
-  }
-
-  function renderDedicatedExamDashboard() {
-    const container = document.getElementById("dedicatedExamDashboard");
-    const exams = StorageService.getState().tasks.filter(t => t.isExam);
-    container.innerHTML = exams.length === 0 ? `<p class="subText">Geen examens.</p>` : exams.map(exam => {
-      const m = ExamEngine.getExamMetrics(exam);
-      return `
-        <div class="stat-card" style="margin-bottom:14px;">
-          <h3>🎓 ${SecurityService.escapeHTML(exam.subject)} — ${SecurityService.escapeHTML(exam.title)}</h3>
-          <div class="subText">Gereedheid: <strong class="${m.colorClass}">${m.readiness}%</strong></div>
-          <div class="progress"><div class="progressFill ${m.bgClass}" style="width:${m.readiness}%;"></div></div>
-          ${(exam.chapters||[]).map(ch=>`<div class="chapter-item"><label><input type="checkbox" ${ch.completed?"checked":""} onchange="App.toggleChapter(${exam.id},${ch.id})"> ${SecurityService.escapeHTML(ch.title)}</label></div>`).join("")}
-          <button class="btn-ghost" style="margin-top:8px; font-size:12px;" onclick="App.addChapterToTask(${exam.id})">+ Hoofdstuk</button>
-        </div>
-      `;
-    }).join("");
-  }
-
-  function renderTasks() {
-    const container = document.getElementById("tasks");
-    const tasks = StorageService.getState().tasks;
-    container.innerHTML = tasks.length === 0 ? `<p class="subText" style="text-align:center;">Geen taken.</p>` : tasks.map(t => `
-      <div class="task ${t.completed ? "complete" : ""}">
-        <div style="display:flex; justify-content:space-between;">
-          <label><input type="checkbox" ${t.completed?"checked":""} onchange="App.toggleTask(${t.id})"> <strong>${SecurityService.escapeHTML(t.title)}</strong></label>
-          <button onclick="App.deleteTask(${t.id})" class="btn-ghost" style="color:var(--danger); padding:2px 6px;">🗑️</button>
-        </div>
-        <div class="subText">${SecurityService.escapeHTML(t.subject)} • 📅 ${t.deadline}</div>
-      </div>
-    `).join("");
-  }
-
-  function populateTimerSelect() {
-    const select = document.getElementById("timerTaskSelect");
-    if (!select) return;
-    select.innerHTML = `<option value="">-- Vrije sessie --</option>` + StorageService.getState().tasks.filter(t=>!t.completed).map(t=>`<option value="${t.id}">${SecurityService.escapeHTML(t.subject)}: ${SecurityService.escapeHTML(t.title)}</option>`).join("");
-  }
-
-  function renderJournalPage() {
-    const container = document.getElementById("journalTimeline");
-    const entries = StorageService.getState().journalEntries;
-    container.innerHTML = entries.length === 0 ? `<p class="subText">Leeg.</p>` : entries.map(e=>`<div class="timeline-item"><strong>${SecurityService.escapeHTML(e.title)}</strong></div>`).join("");
-  }
-
-  function renderStatsPage() {
-    const state = StorageService.getState();
-    document.getElementById("statTotalHours").innerText = `${(state.studyHistory.reduce((s,h)=>s+h.durationMinutes,0)/60).toFixed(1)}u`;
-    document.getElementById("statTotalXP").innerText = `${state.gamification.xp} XP`;
-    document.getElementById("badgesGrid").innerHTML = Gamification.BADGE_DEFINITIONS.map(b=>`<div class="badge-card unlocked"><div style="font-size:28px;">${b.icon}</div><strong>${b.name}</strong></div>`).join("");
-  }
-
-  return { init, switchView, toggleTask, toggleChapter, addChapterToTask, deleteTask, renderAll, renderStatsPage };
-})();
-
-App.init();
-</script>
-
-<!-- FIREBASE SDKs & INTEGRATION MODULE (Modular v10) -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { 
-  getAuth, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut, 
-  sendPasswordResetEmail, 
-  onAuthStateChanged,
-  GoogleAuthProvider,
-  signInWithPopup
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { 
-  getFirestore, 
-  doc, 
-  setDoc, 
-  getDoc 
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyATKzMpiu-TRiCejse0VncOA6SH1idEdEQ",
-  authDomain: "study-planner-9d40f.firebaseapp.com",
-  projectId: "study-planner-9d40f",
-  storageBucket: "study-planner-9d40f.firebasestorage.app",
-  messagingSenderId: "285251389101",
-  appId: "1:285251389101:web:1d36248dc8fa30b3b92824",
-  measurementId: "G-6RJ61BZLMW"
-};
-
-let app, auth, db;
-let firebaseInitialized = false;
-
-try {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
-  firebaseInitialized = true;
-  console.log("Firebase initialized successfully.");
-} catch (e) {
-  console.warn("Firebase initialization failed:", e);
-}
-
-const CloudSyncService = (() => {
-  let syncTimer = null;
-
-  function debounceSync() {
-    if (!firebaseInitialized || !auth || !auth.currentUser) return;
-    clearTimeout(syncTimer);
-    syncTimer = setTimeout(() => {
-      pushToFirestore(auth.currentUser.uid);
-    }, 1500);
-  }
-
-  async function pushToFirestore(uid) {
-    if (!firebaseInitialized || !db) return;
-    try {
-      const state = StorageService.getState();
-      const userDocRef = doc(db, "users", uid);
-      await setDoc(userDocRef, {
-        profile: state.userProfile,
-        settings: state.settings,
-        availability: state.availability,
-        tasks: state.tasks,
-        subjectGoals: state.subjectGoals,
-        studyHistory: state.studyHistory,
-        journalEntries: state.journalEntries,
-        gamification: state.gamification,
-        lastSynced: new Date().toISOString()
-      }, { merge: true });
-      
-      const badgeEl = document.getElementById("cloudSyncStatus");
-      if (badgeEl) badgeEl.textContent = `☁️ Synced (${new Date().toLocaleTimeString("nl-BE")})`;
-    } catch (e) {
-      console.warn("Firestore push error:", e);
-    }
-  }
-
-  async function pullOrMigrate(user) {
-    if (!firebaseInitialized || !db) return;
-    try {
-      const userDocRef = doc(db, "users", user.uid);
-      const snap = await getDoc(userDocRef);
-      const state = StorageService.getState();
-
-      if (snap.exists()) {
-        const cloudData = snap.data();
-        state.userProfile = cloudData.profile || { uid: user.uid, email: user.email, name: user.displayName || user.email.split("@")[0] };
-        state.settings = cloudData.settings || state.settings;
-        state.availability = cloudData.availability || state.availability;
-        state.tasks = cloudData.tasks || state.tasks;
-        state.subjectGoals = cloudData.subjectGoals || state.subjectGoals;
-        state.studyHistory = cloudData.studyHistory || state.studyHistory;
-        state.journalEntries = cloudData.journalEntries || state.journalEntries;
-        state.gamification = cloudData.gamification || state.gamification;
-        StorageService.save(false);
-      } else {
-        state.userProfile = {
-          uid: user.uid,
-          email: user.email,
-          name: user.displayName || user.email.split("@")[0],
-          grade: "Student",
-          createdAt: new Date().toISOString()
-        };
-        StorageService.save(false);
-        await pushToFirestore(user.uid);
-        console.log("Local storage data successfully migrated to Firestore for user:", user.uid);
-      }
-      App.renderAll();
-    } catch (e) {
-      console.warn("Migration/Pull error:", e);
-    }
-  }
-
-  async function forceSyncNow() {
-    if (!auth || !auth.currentUser) {
-      alert("Je bent niet ingelogd bij Firebase.");
-      return;
-    }
-    await pushToFirestore(auth.currentUser.uid);
-    alert("Gegevens succesvol gesynchroniseerd met Firestore!");
-  }
-
-  return { debounceSync, pushToFirestore, pullOrMigrate, forceSyncNow };
-})();
-
-window.CloudSyncService = CloudSyncService;
-
-window.AccountModule = (() => {
-  function toggleAuthMode(mode) {
-    document.getElementById("loginForm").classList.toggle("hidden", mode !== "login");
-    document.getElementById("registerForm").classList.toggle("hidden", mode !== "register");
-    document.getElementById("forgotForm").classList.toggle("hidden", mode !== "forgot");
-    document.getElementById("showLoginBtn").classList.toggle("active", mode === "login");
-    document.getElementById("showRegisterBtn").classList.toggle("active", mode === "register");
-    document.getElementById("showForgotBtn").classList.toggle("active", mode === "forgot");
-  }
-
-  async function handleLogin(e) {
-    e.preventDefault();
-    const email = document.getElementById("loginEmail").value.trim();
-    const password = document.getElementById("loginPassword").value;
-    document.getElementById("loginPassword").value = "";
-
-    if (!firebaseInitialized || !auth) {
-      alert("Firebase is niet geconfigureerd.");
-      return;
-    }
-
-    try {
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      await CloudSyncService.pullOrMigrate(cred.user);
-      alert("Succesvol ingelogd!");
-      App.switchView("dashboard");
-    } catch (err) {
-      alert("Inloggen mislukt: " + err.message);
-    }
-  }
-
-  async function handleRegister(e) {
-    e.preventDefault();
-    const name = document.getElementById("regName").value.trim();
-    const email = document.getElementById("regEmail").value.trim();
-    const grade = document.getElementById("regGrade").value.trim() || "Student";
-    const password = document.getElementById("regPassword").value;
-    document.getElementById("regPassword").value = "";
-
-    if (!firebaseInitialized || !auth) {
-      alert("Firebase is niet geconfigureerd.");
-      return;
-    }
-
-    try {
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
-      const state = StorageService.getState();
-      state.userProfile = { uid: cred.user.uid, name, email, grade, createdAt: new Date().toISOString() };
-      StorageService.save(false);
-      await CloudSyncService.pushToFirestore(cred.user.uid);
-      alert("Account aangemaakt en gegevens gesynchroniseerd met Firestore!");
-      App.switchView("dashboard");
-    } catch (err) {
-      alert("Registreren mislukt: " + err.message);
-    }
-  }
-
-  async function handleGoogleSignIn() {
-    if (!firebaseInitialized || !auth) {
-      alert("Firebase is niet geconfigureerd.");
-      return;
-    }
-    try {
-      const provider = new GoogleAuthProvider();
-      const cred = await signInWithPopup(auth, provider);
-      await CloudSyncService.pullOrMigrate(cred.user);
-      alert("Ingetekend met Google!");
-      App.switchView("dashboard");
-    } catch (err) {
-      alert("Google login mislukt: " + err.message);
-    }
-  }
-
-  async function handleForgotPassword(e) {
-    e.preventDefault();
-    const email = document.getElementById("forgotEmail").value.trim();
-    document.getElementById("forgotEmail").value = "";
-
-    if (!firebaseInitialized || !auth) {
-      alert("Firebase is niet geconfigureerd.");
-      return;
-    }
-
-    try {
-      await sendPasswordResetEmail(auth, email);
-      alert("Wachtwoord reset e-mail is verzonden!");
-      toggleAuthMode("login");
-    } catch (err) {
-      alert("Fout bij verzenden reset e-mail: " + err.message);
-    }
-  }
-
-  async function logout() {
-    if (firebaseInitialized && auth) {
-      await signOut(auth);
-    }
-    const state = StorageService.getState();
-    state.userProfile = null;
-    StorageService.save(false);
-    renderAccount();
-    App.renderAll();
-    alert("Uitgelogd.");
-  }
-
-  function updateWeeklyGoal(hours) {
-    const state = StorageService.getState();
-    state.settings.weeklyGoalHours = Math.max(1, Math.min(80, parseFloat(hours) || 10));
-    StorageService.save(true);
-    App.renderAll();
-  }
-
-  function renderAccount() {
-    const state = StorageService.getState();
-    const user = state.userProfile;
-    document.getElementById("authContainer").classList.toggle("hidden", !!user);
-    document.getElementById("profileContainer").classList.toggle("hidden", !user);
-
-    if (user) {
-      document.getElementById("profName").textContent = user.name || user.email;
-      document.getElementById("profEmail").textContent = user.email;
-      document.getElementById("profUid").textContent = user.uid;
-      document.getElementById("profGrade").textContent = user.grade || "Student";
-      const goalInput = document.getElementById("weeklyGoalInput");
-      if (goalInput) goalInput.value = state.settings.weeklyGoalHours;
-    }
-  }
-
-  return { toggleAuthMode, handleLogin, handleRegister, handleGoogleSignIn, handleForgotPassword, logout, updateWeeklyGoal, renderAccount };
-})();
-
-if (firebaseInitialized && auth) {
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      await CloudSyncService.pullOrMigrate(user);
-    }
-  });
-}
-</script>
-</body>
-</html>
+        if (remainingSeconds <= 0) {
