@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data: https://www.gstatic.com https://*.googleapis.com https://*.firebaseio.com https://*.firebase.com; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://*.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googleusercontent.com https://*; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://*.firebase.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.allorigins.win https://*; base-uri 'self'; form-action 'self';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data: https://www.gstatic.com https://*.googleapis.com https://*.firebaseio.com https://*.firebase.com; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://*.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googleusercontent.com https://*; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://*.firebase.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; base-uri 'self'; form-action 'self';">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#4f46e5">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>SmartStudy Planner — Smartschool ICS & Firebase Edition</title>
+<title>SmartStudy Planner — Local ICS & Firebase Edition</title>
 <link id="pwaManifest" rel="manifest">
 
 <style>
@@ -519,7 +519,7 @@ body{ padding:10px; }
 <div id="splashScreen">
 <div style="font-size:56px; margin-bottom:12px;">📚</div>
 <h1 style="font-size:28px; font-weight:800;">SmartStudy Planner</h1>
-<p style="opacity:0.85; margin-top:6px;">Smartschool ICS & Firebase Synchronized Edition</p>
+<p style="opacity:0.85; margin-top:6px;">Local ICS & Firebase Synchronized Edition</p>
 </div>
 
 <div class="container">
@@ -537,7 +537,7 @@ body{ padding:10px; }
 <button id="tabDashboard" class="navBtn active" onclick="App.switchView('dashboard')">Dashboard</button>
 <button id="tabExams" class="navBtn" onclick="App.switchView('exams')">🎓 Examens</button>
 <button id="tabAvailability" class="navBtn" onclick="App.switchView('availability')">🕒 Beschikbaarheid</button>
-<button id="tabSmartschool" class="navBtn" onclick="App.switchView('smartschool')">🏫 Smartschool</button>
+<button id="tabSmartschool" class="navBtn" onclick="App.switchView('smartschool')">🏫 Smartschool & ICS</button>
 <button id="tabFocus" class="navBtn" onclick="App.switchView('focus')">🎯 Focus Mode</button>
 <button id="tabJournal" class="navBtn" onclick="App.switchView('journal')">📓 Dagboek</button>
 <button id="tabStats" class="navBtn" onclick="App.switchView('stats')">📊 Statistieken</button>
@@ -697,20 +697,19 @@ body{ padding:10px; }
 </div>
 </section>
 
-<section id="smartschoolView" class="hidden" aria-label="Smartschool ICS Synchronisatie">
+<section id="smartschoolView" class="hidden" aria-label="Smartschool en Kalender Lokaal Importeren">
 <div class="card">
 <div class="card-header">
-<h2>🏫 Smartschool ICS Kalender & Examen Synchronisatie</h2>
-<span class="badge-pill sec-badge">Live ICS Feed Sync</span>
+<h2>🏫 Smartschool & Kalender .ics Lokaal Importeren</h2>
+<span class="badge-pill sec-badge">100% Lokaal & Veilig</span>
 </div>
-<p class="subText" style="margin-bottom:14px;">Plak je persoonlijke Smartschool kalender of examentest ICS-feed URL hieronder om automatisch je lessen, examens en deadlines in te laden en je gereedheidsscores te updaten.</p>
+<p class="subText" style="margin-bottom:14px;">Exporteer je kalender of examens als .ics bestand vanuit Smartschool of Google Calendar en selecteer het hieronder. Alle verwerking gebeurt lokaal in je browser zonder externe netwerkverzoeken of proxies.</p>
 <div class="formGrid" style="grid-template-columns:1fr; margin-bottom:16px;">
 <div class="field-group">
-<label for="icsUrlInput">Smartschool ICS Feed URL</label>
-<input id="icsUrlInput" placeholder="https://sintlodewijk.smartschool.be/ical/ical.ical?user=...&hash=...">
+<label for="icsFileInput">Selecteer .ics Bestand vanaf Apparaat</label>
+<input type="file" id="icsFileInput" accept=".ics,.ical" onchange="SmartschoolSync.importFromFile(event)">
 </div>
 <div style="display:flex; gap:10px; flex-wrap:wrap;">
-<button class="btn-success" onclick="SmartschoolSync.importFromURL()">📥 ICS Importeren & Synchroniseren</button>
 <button class="btn-ghost" onclick="SmartschoolSync.importSampleICS()">🧪 Test met Voorbeeld ICS</button>
 </div>
 </div>
@@ -718,10 +717,10 @@ body{ padding:10px; }
 
 <div class="card">
 <div class="card-header">
-<h2>📋 Smartschool Synchronisatie Log & Geïmporteerde Items</h2>
-<button class="btn-danger" style="font-size:12px; padding:6px 10px;" onclick="SmartschoolSync.clearSmartschoolItems()">🗑️ Wis Smartschool Items</button>
+<h2>📋 Geïmporteerde Smartschool / Kalender Items</h2>
+<button class="btn-danger" style="font-size:12px; padding:6px 10px;" onclick="SmartschoolSync.clearSmartschoolItems()">🗑️ Wis Geïmporteerde Items</button>
 </div>
-<div id="smartschoolLogContainer"><p class="subText">Nog geen Smartschool items gesynchroniseerd.</p></div>
+<div id="smartschoolLogContainer"><p class="subText">Nog geen items geïmporteerd.</p></div>
 </div>
 </section>
 
@@ -1217,32 +1216,21 @@ const SmartschoolSync = (() => {
     return Utils.todayMidnight();
   }
 
-  async function importFromURL(customUrl) {
-    const urlInput = document.getElementById("icsUrlInput");
-    const url = customUrl || (urlInput ? urlInput.value.trim() : "");
-    if (!url) {
-      alert("Voer een geldige Smartschool ICS feed URL in.");
-      return;
-    }
-
-    try {
-      let icsText = "";
+  function importFromFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
       try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("HTTP error " + res.status);
-        icsText = await res.text();
+        const icsText = e.target.result;
+        processICSData(icsText, file.name);
       } catch (err) {
-        const proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(url);
-        const res2 = await fetch(proxyUrl);
-        if (!res2.ok) throw new Error("CORS Proxy error");
-        icsText = await res2.text();
+        alert("Fout bij het lezen van het .ics bestand.");
+        console.error(err);
       }
-
-      processICSData(icsText, url);
-    } catch (err) {
-      alert("Kan ICS feed niet ophalen (mogelijke CORS-beperking of ongeldige URL). Probeer de 'Test met Voorbeeld ICS' knop.");
-      console.error(err);
-    }
+    };
+    reader.readAsText(file);
+    event.target.value = "";
   }
 
   function importSampleICS() {
@@ -1277,7 +1265,7 @@ END:VCALENDAR`;
   function processICSData(icsText, sourceLabel) {
     const events = parseICS(icsText);
     if (events.length === 0) {
-      alert("Geen geldige evenementen gevonden in de ICS feed.");
+      alert("Geen geldige evenementen gevonden in dit .ics bestand.");
       return;
     }
 
@@ -1345,7 +1333,7 @@ END:VCALENDAR`;
     StorageService.save(true);
     App.renderAll();
     renderSmartschoolLog();
-    alert(`Smartschool Synchronisatie Voltooid!\n• Nieuw geïmporteerd: ${importedCount}\n• Bijgewerkt: ${updatedCount}\n• Totaal Smartschool items: ${state.smartschoolSync.importedItemsCount}`);
+    alert(`Bestand succesvol geïmporteerd!\n• Nieuw geïmporteerd: ${importedCount}\n• Bijgewerkt: ${updatedCount}\n• Totaal items: ${state.smartschoolSync.importedItemsCount}`);
   }
 
   function renderSmartschoolLog() {
@@ -1357,34 +1345,34 @@ END:VCALENDAR`;
 
     container.innerHTML = `
       <div class="stat-card" style="margin-bottom:12px;">
-        <p><strong>Laatste Sync:</strong> ${sync.lastSynced ? new Date(sync.lastSynced).toLocaleString("nl-BE") : "Nog niet gesynchroniseerd"}</p>
-        <p><strong>Bron / Feed:</strong> ${SecurityService.escapeHTML(sync.icsUrl || "Geen")}</p>
-        <p><strong>Actieve Smartschool Items:</strong> ${ssTasks.length}</p>
+        <p><strong>Laatste Import:</strong> ${sync.lastSynced ? new Date(sync.lastSynced).toLocaleString("nl-BE") : "Nog geen bestand geïmporteerd"}</p>
+        <p><strong>Bestand / Bron:</strong> ${SecurityService.escapeHTML(sync.icsUrl || "Geen")}</p>
+        <p><strong>Actieve Geïmporteerde Items:</strong> ${ssTasks.length}</p>
       </div>
-      ${ssTasks.length === 0 ? `<p class="subText">Geen Smartschool items in je planner.</p>` : ssTasks.map(t => `
+      ${ssTasks.length === 0 ? `<p class="subText">Geen geïmporteerde items in je planner.</p>` : ssTasks.map(t => `
         <div class="rec-row">
           <div>
             <strong>${t.isExam ? "🎓 Examen" : "📚 Taak"}: ${SecurityService.escapeHTML(t.subject)} — ${SecurityService.escapeHTML(t.title)}</strong>
             <div class="subText">Deadline: ${t.deadline} • Omvang: ${t.size}</div>
           </div>
-          <span class="badge-pill ${t.isExam ? "exam-badge" : "rev-badge"}">Smartschool</span>
+          <span class="badge-pill ${t.isExam ? "exam-badge" : "rev-badge"}">Lokaal ICS</span>
         </div>
       `).join("")}
     `;
   }
 
   function clearSmartschoolItems() {
-    if (!confirm("Alle Smartschool gesynchroniseerde taken en examens verwijderen?")) return;
+    if (!confirm("Alle geïmporteerde Smartschool/kalender taken en examens verwijderen?")) return;
     const state = StorageService.getState();
     state.tasks = state.tasks.filter(t => !t.source && !t.smartschoolUid);
     state.smartschoolSync = { lastSynced: null, icsUrl: "", importedItemsCount: 0 };
     StorageService.save(true);
     App.renderAll();
     renderSmartschoolLog();
-    alert("Smartschool items gewist.");
+    alert("Geïmporteerde items gewist.");
   }
 
-  return { parseICS, importFromURL, importSampleICS, renderSmartschoolLog, clearSmartschoolItems };
+  return { parseICS, importFromFile, importSampleICS, renderSmartschoolLog, clearSmartschoolItems };
 })();
 
 const ExamEngine = (() => {
@@ -1998,7 +1986,6 @@ const CloudSyncService = (() => {
         state.userProfile = cloudData.profile || { uid: user.uid, email: user.email, name: user.displayName || user.email.split("@")[0] };
         state.settings = cloudData.settings || state.settings;
         state.availability = cloudData.availability || state.availability;
-        state.tasks = cloudData.tasks || cloudData.tasks;
         state.tasks = cloudData.tasks || [];
         state.subjectGoals = cloudData.subjectGoals || state.subjectGoals;
         state.studyHistory = cloudData.studyHistory || state.studyHistory;
@@ -2134,7 +2121,6 @@ window.AccountModule = (() => {
     if (firebaseInitialized && auth) {
       await signOut(auth);
     }
-    // Clear local session data, loaded Firestore data, visible tasks, exams, history, and stats without deleting cloud data
     StorageService.resetLocalState();
     renderAccount();
     App.switchView("account");
