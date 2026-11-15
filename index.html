@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data: https://www.gstatic.com https://*.googleapis.com https://*.firebaseio.com; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://*.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://*; base-uri 'self'; form-action 'self';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data: https://www.gstatic.com https://*.googleapis.com https://*.firebaseio.com https://*.firebase.com; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://*.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googleusercontent.com https://*; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://*.firebase.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.allorigins.win https://*; base-uri 'self'; form-action 'self';">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#4f46e5">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1090,12 +1090,22 @@ const StorageService = (() => {
   }
 
   function getState() { return state; }
+  
   function replaceState(newState) {
     state = { ...structuredClone(defaultState), ...newState };
     saveLocal(false);
   }
 
-  return { getState, save: saveLocal, replaceState, BACKUP_KEY };
+  function resetLocalState() {
+    state = structuredClone(defaultState);
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem("smartstudy_tasks");
+    localStorage.removeItem("smartstudy_history");
+    localStorage.removeItem("smartstudy_xp");
+    saveLocal(false);
+  }
+
+  return { getState, save: saveLocal, replaceState, resetLocalState, BACKUP_KEY };
 })();
 
 const BackupService = (() => {
@@ -1700,6 +1710,23 @@ const FocusMode = (() => {
 const PWA = {
   init() {
     setTimeout(() => { document.getElementById("splashScreen").classList.add("fade-out"); }, 400);
+    try {
+      const manifest = {
+        name: "SmartStudy Planner",
+        short_name: "SmartStudy",
+        start_url: "./",
+        display: "standalone",
+        background_color: "#4f46e5",
+        theme_color: "#4f46e5",
+        icons: [
+          { src: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>", sizes: "192x192", type: "image/svg+xml" }
+        ]
+      };
+      const blob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
+      const manifestUrl = URL.createObjectURL(blob);
+      const manifestTag = document.getElementById("pwaManifest");
+      if (manifestTag) manifestTag.setAttribute("href", manifestUrl);
+    } catch (e) {}
   },
   installApp() {},
   applyUpdate() { window.location.reload(); }
@@ -1971,7 +1998,8 @@ const CloudSyncService = (() => {
         state.userProfile = cloudData.profile || { uid: user.uid, email: user.email, name: user.displayName || user.email.split("@")[0] };
         state.settings = cloudData.settings || state.settings;
         state.availability = cloudData.availability || state.availability;
-        state.tasks = cloudData.tasks || state.tasks;
+        state.tasks = cloudData.tasks || cloudData.tasks;
+        state.tasks = cloudData.tasks || [];
         state.subjectGoals = cloudData.subjectGoals || state.subjectGoals;
         state.studyHistory = cloudData.studyHistory || state.studyHistory;
         state.journalEntries = cloudData.journalEntries || state.journalEntries;
@@ -2106,12 +2134,15 @@ window.AccountModule = (() => {
     if (firebaseInitialized && auth) {
       await signOut(auth);
     }
-    const state = StorageService.getState();
-    state.userProfile = null;
-    StorageService.save(false);
+    // Clear local session data, loaded Firestore data, visible tasks, exams, history, and stats without deleting cloud data
+    StorageService.resetLocalState();
     renderAccount();
+    App.switchView("account");
+    toggleAuthMode("login");
     App.renderAll();
-    alert("Uitgelogd.");
+    const cloudSyncBadge = document.getElementById("cloudSyncStatus");
+    if (cloudSyncBadge) cloudSyncBadge.textContent = "☁️ Cloud Klaar";
+    alert("Uitgelogd en lokale sessie gewist.");
   }
 
   function updateWeeklyGoal(hours) {
