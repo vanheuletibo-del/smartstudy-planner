@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#4f46e5">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>SmartStudy Planner — Smartschool ICS Edition</title>
+<title>SmartStudy Planner — Smartschool ICS & Firebase Edition</title>
 <link id="pwaManifest" rel="manifest">
 
 <style>
@@ -1217,7 +1217,6 @@ const SmartschoolSync = (() => {
 
     try {
       let icsText = "";
-      // Try direct fetch, fallback to CORS proxy if needed
       try {
         const res = await fetch(url);
         if (!res.ok) throw new Error("HTTP error " + res.status);
@@ -1283,7 +1282,6 @@ END:VCALENDAR`;
       const deadlineStr = Utils.toDateKey(deadlineDate);
       const isExam = /examen|test|overhoring|toets/i.test(titleRaw);
       
-      // Infer subject
       let subject = "Smartschool";
       const lower = titleRaw.toLowerCase();
       if (lower.includes("aut") || lower.includes("automatisering")) subject = "AUT";
@@ -1299,18 +1297,15 @@ END:VCALENDAR`;
       const cleanTitle = titleRaw.includes(":") ? titleRaw.split(":")[1].trim() : titleRaw;
       const uniqueUid = ev.uid || ("ss_" + titleRaw + "_" + deadlineStr);
 
-      // Check duplicate / existing
       const existing = state.tasks.find(t => t.smartschoolUid === uniqueUid || (t.title === cleanTitle && t.deadline === deadlineStr));
 
       if (existing) {
-        // Update existing item if changed
         existing.title = cleanTitle;
         existing.deadline = deadlineStr;
         existing.subject = subject;
         existing.isExam = isExam;
         updatedCount++;
       } else {
-        // Create new task/exam from ICS
         state.tasks.push({
           id: Date.now() + Math.floor(Math.random() * 1000),
           ownerId: state.ownerId,
